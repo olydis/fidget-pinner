@@ -1,0 +1,36 @@
+{
+  "name": "fidget-pinner",
+  "version": "0.1.0",
+  "description": "TODO",
+  "main": "dist/app.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "electron dist/app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/olydis/autorest-interactive.git"
+  },
+  "keywords": [
+    "autorest"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/olydis/autorest-interactive/issues"
+  },
+  "homepage": "https://github.com/olydis/autorest-interactive#readme",
+  "devDependencies": {
+    "@types/jquery": "^3.2.11",
+    "@types/js-yaml": "^3.9.0",
+    "@types/jsonpath": "^0.2.0",
+    "@types/node": "^8.0.22",
+    "typescript": "^2.4.2"
+  },
+  "dependencies": {
+    "electron": "^1.7.5",
+    "jquery": "^3.2.1",
+    "js-yaml": "^3.9.1",
+    "jsonpath": "^0.2.12"
+  }
+}
