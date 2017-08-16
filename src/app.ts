@@ -1,3 +1,4 @@
+import { createFunc } from './commServer';
 import { setTimeout } from 'timers';
 import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 import { createReadStream, createWriteStream } from "fs";
@@ -12,19 +13,6 @@ app.on('window-all-closed', () => { app.exit(); })
 function createUrl(data: string, mediaType: string = "text/html"): string {
   return `data:${mediaType},${encodeURIComponent(data)}`;
 }
-
-ipcMain.on('mouse-move', (event, arg) => {
-  dialog.showMessageBox({
-    message: safeDump(event.sender instanceof BrowserWindow, {
-      skipInvalid: true
-    })
-  });
-  dialog.showMessageBox({
-    message: safeDump(Object.keys(event.sender), {
-      skipInvalid: true
-    })
-  });
-});
 
 const showContentWindow = async () => {
   const win = new BrowserWindow({ frame: false });
@@ -51,6 +39,25 @@ const showContentWindow = async () => {
     width: 500,
     height: 500
   }, true);
+  
+  createFunc(win, "mouse-move", i => i);
+  ipcMain.on('mouse-move', (event, arg) => {
+    dialog.showMessageBox({
+      message: safeDump(event.sender.webContents == win.webContents, {
+        skipInvalid: true
+      })
+    });
+    dialog.showMessageBox({
+      message: safeDump(event.sender == win, {
+        skipInvalid: true
+      })
+    });
+    dialog.showMessageBox({
+      message: safeDump(Object.keys(event.sender), {
+        skipInvalid: true
+      })
+    });
+  });
 };
 
 const showWindow = () => {
@@ -70,7 +77,12 @@ const showDebugWindow = () => {
 
   win.webContents.openDevTools();
   const displays = screen.getAllDisplays();
-  win.loadURL(createUrl(`<pre>${JSON.stringify(displays, null, 2)}</pre>`));
+  win.loadURL(createUrl(`<pre>${JSON.stringify(displays, null, 2)}</pre>
+  <script>
+  var { ipcRenderer, remote } = require("electron");
+  var draggable = document.body;
+  draggable.onmousedown = event => ipcRenderer.send('mouse-move', 42);;
+  </script>`));
 };
 
 app.once("ready", () => {
