@@ -1,0 +1,17 @@
+<html>
+
+<head>
+  <script>
+    var exports = {};
+  </script>
+  <script src="index.js"></script>
+  <script>
+    require("jquery")(() => require("../commClient").signal("__ready"));
+  </script>
+</head>
+
+<body>
+  <pre id="content"></pre>
+</body>
+
+</html>

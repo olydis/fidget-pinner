@@ -1,0 +1,43 @@
+<html>
+
+<head>
+  <script>
+    var exports = {};
+  </script>
+  <script src="index.js"></script>
+  <script>
+    require("jquery")(() => require("../commClient").signal("__ready"));
+  </script>
+  <style>
+    body.mode-view {
+      -webkit-app-region: drag;
+      -webkit-user-select: none;
+    }
+
+    body webview {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    body canvas#overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.5;
+      background: white;
+      cursor: move;
+    }
+  </style>
+</head>
+
+<body class="mode-view">
+  <webview src="https://google.com"></webview>
+  <canvas id="overlay"></canvas>
+</body>
+
+</html>

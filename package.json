@@ -4,7 +4,7 @@
   "description": "TODO",
   "main": "dist/app.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && copyfiles --up 1 src/**/*.html src/**/*.css dist/",
     "start": "electron dist/app.js"
   },
   "repository": {
@@ -25,7 +25,8 @@
     "@types/js-yaml": "^3.9.0",
     "@types/jsonpath": "^0.2.0",
     "@types/node": "^8.0.22",
-    "typescript": "^2.4.2"
+    "typescript": "^2.4.2",
+    "copyfiles": "^1.2.0"
   },
   "dependencies": {
     "electron": "^1.7.5",
