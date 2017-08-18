@@ -10,8 +10,8 @@
   </script>
   <style>
     body.mode-view {
-      -webkit-app-region: drag;
-      -webkit-user-select: none;
+      /*-webkit-app-region: drag;
+      -webkit-user-select: none;*/
     }
 
     body webview {
@@ -32,10 +32,14 @@
       background: white;
       cursor: move;
     }
+
+    body.mode-view canvas#overlay {
+      display: none;
+    }
   </style>
 </head>
 
-<body class="mode-view">
+<body class="edit-view">
   <webview src="https://google.com"></webview>
   <canvas id="overlay"></canvas>
 </body>
