@@ -1,7 +1,4 @@
-import { WindowMain } from './windowMain/main';
 import { delay } from './delay';
-import { WindowDebug } from './windowDebug/main';
-import { createFunc } from './commServer';
 import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 import { createReadStream, createWriteStream } from "fs";
 import { safeLoad, safeDump } from "js-yaml";
@@ -9,14 +6,21 @@ import { safeLoad, safeDump } from "js-yaml";
 
 app.on('window-all-closed', () => app.exit())
 
+let win: Electron.BrowserWindow;
+
 app.once("ready", async () => {
   const displays = screen.getAllDisplays();
-  const winDebug = await WindowDebug.create();
-  await winDebug.setContent(JSON.stringify(displays, null, 2));
-
-  const winMain = await WindowMain.create();
+  
+  win = new BrowserWindow({ frame: false });
+  win.setMenu(null as any);
+  win.setAlwaysOnTop(true);
+  win.loadURL(`${__dirname}/window/index.html`);
+  win.webContents.openDevTools();
 });
 
+export function setContentBounds(bounds: Electron.Rectangle): void {
+  win.setContentBounds(bounds);
+}
 
 
 // function createUrl(data: string, mediaType: string = "text/html"): string {
