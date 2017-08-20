@@ -34,63 +34,104 @@ const options = {
   windowTop: 500
 };
 
-let webView: Electron.WebviewTag;
+type Options = typeof options;
 
 // state machine
-interface State {
-  enter(): void;
-  exit(): void;
-}
-let state: State;
-function transition(newState: State): void { state.exit(); state = newState; document.body.className = state.constructor.name; state.enter(); }
+class State {
+  protected get HWebView() { return State.hWebView; }
+  protected get JContainer() { return State.jContainer; }
+  protected get JControls() { return State.jControls; }
 
-// states
-class StateView implements State {
-  public enter() {
-    var wv = $(webView);
-    wv.width(options.contentWidth);
-    wv.height(options.contentHeight);
-    wv.scrollLeft(options.contentScrollX);
-    wv.scrollTop(options.contentScrollY);
-    wv.offset({ left: -options.visibleLeft, top: -options.visibleTop });
-    setContentBounds({
-      x: options.windowLeft,
-      y: options.windowTop,
-      width: options.visibleRight - options.visibleLeft,
-      height: options.visibleBottom - options.visibleTop
+  protected enter(): void { }
+  protected exit(): void { }
+  protected keydown(keycode: number): void { }
+
+  private static currentState: State;
+  public static transition(newState: State): void {
+    State.currentState.exit();
+    State.currentState = newState;
+    document.body.className = State.currentState.constructor.name;
+    State.currentState.enter();
+  }
+  private static hWebView: Electron.WebviewTag;
+  private static jContainer: JQuery;
+  private static jControls: JQuery;
+  public static initialize(): void {
+    $(window).keydown(ev => State.currentState.keydown(ev.keyCode || 0));
+    State.hWebView = document.getElementById("page") as Electron.WebviewTag;
+    State.jContainer = $("div#container");
+    State.jControls = $("div#controls");
+
+    State.hWebView.src = options.content.url;
+    // (webView as any).setLayoutZoomLevelLimits(options.contentZoom, options.contentZoom);
+    // webView.setZoomLevel(options.contentZoom);
+    // prevent scroll in webpage: $("body").css("overflow", "hidden");
+
+    State.currentState = new State();
+    State.transition(new StateView());
+  }
+
+  protected updatePositions(options: Options, fullView: boolean) {
+    if (fullView)
+      setContentBounds({
+        x: options.windowLeft,
+        y: options.windowTop,
+        width: options.visibleRight - options.visibleLeft,
+        height: options.visibleBottom - options.visibleTop
+      });
+    else
+      setContentBounds({
+        x: options.windowLeft - options.visibleLeft,
+        y: options.windowTop - options.visibleTop,
+        width: options.contentWidth,
+        height: options.contentHeight
+      });
+
+    var container = this.JContainer;
+    container.width(options.contentWidth);
+    container.height(options.contentHeight);
+    container.scrollLeft(options.contentScrollX);
+    container.scrollTop(options.contentScrollY);
+
+    if (fullView)
+      container.offset({ left: -options.visibleLeft, top: -options.visibleTop });
+    else
+      container.offset({ left: 0, top: 0 });
+
+    this.JControls.css({ 
+      left: options.visibleLeft,
+      top: options.visibleTop,
+      width: options.visibleRight - options.visibleLeft
     });
   }
-  public exit() { }
 }
 
-class StatePan implements State {
+// states
+class StateView extends State {
+  protected enter() {
+    this.JControls.removeClass("visible");
+
+    this.updatePositions(options, false);
+  }
+  protected exit() {
+    this.JControls.addClass("visible");
+  }
+  protected keydown(keycode: number): void {
+    if (keycode === 18) this.JControls.toggleClass("visible");
+    //alert(keycode);
+    //State.transition(new StatePan());
+  }
+}
+
+class StatePan extends State {
   public enter() {
-    var wv = $(webView);
-    wv.width(options.contentWidth);
-    wv.height(options.contentHeight);
-    wv.scrollLeft(options.contentScrollX);
-    wv.scrollTop(options.contentScrollY);
-    wv.offset({ left: 0, top: 0 });
-    setContentBounds({
-      x: options.windowLeft - options.visibleLeft,
-      y: options.windowTop - options.visibleTop,
-      width: options.contentWidth,
-      height: options.contentHeight
-    });
+    this.updatePositions(options, true);
   }
   public exit() { }
 }
 
 $(() => {
-  webView = document.getElementById("page") as Electron.WebviewTag;
-
-  webView.src = options.content.url;
-  // (webView as any).setLayoutZoomLevelLimits(options.contentZoom, options.contentZoom);
-  // webView.setZoomLevel(options.contentZoom);
-  // prevent scroll in webpage: $("body").css("overflow", "hidden");
-
-  state = new StatePan();
-  state.enter();
+  State.initialize();
 
   // const draggable = $("#overlay");
   

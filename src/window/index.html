@@ -11,6 +11,10 @@
 
     body webview {
       position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
     }
 
     body canvas#overlay {
@@ -27,12 +31,43 @@
     body.mode-view canvas#overlay {
       display: none;
     }
+
+    body div#container {
+      position: fixed;
+
+    }
+
+    div#controls {
+      display: none;
+      opacity: 0.8;
+      background: white;
+    }
+    div#controls.visible {
+      display: block;
+    }
+
+    div.button {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      line-height: 24px;
+      border: 1px solid black;
+      text-align: center;
+    }
   </style>
 </head>
 
 <body>
-  <webview id="page" src=""></webview>
-  <canvas id="overlay"></canvas>
+  <div id="container">
+    <webview id="page" src=""></webview>
+    <canvas id="overlay"></canvas>
+    <div id="controls">
+      <div class="button" id="#ctrlTest">T</div>
+      <div class="button">A</div>
+      <div class="button">B</div>
+      <div class="button">C</div>
+    </div>
+  <div>
 </body>
 
 </html>

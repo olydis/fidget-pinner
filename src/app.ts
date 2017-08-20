@@ -15,7 +15,7 @@ app.once("ready", async () => {
   win.setMenu(null as any);
   win.setAlwaysOnTop(true);
   win.loadURL(`${__dirname}/window/index.html`);
-  win.webContents.openDevTools();
+  // win.webContents.openDevTools();
 });
 
 export function setContentBounds(bounds: Electron.Rectangle): void {
