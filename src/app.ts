@@ -12,6 +12,7 @@ app.once("ready", async () => {
   const displays = screen.getAllDisplays();
   
   win = new BrowserWindow({ frame: false });
+  win.setResizable(false);
   win.setMenu(null as any);
   win.setAlwaysOnTop(true);
   win.loadURL(`${__dirname}/window/index.html`);
@@ -20,6 +21,10 @@ app.once("ready", async () => {
 
 export function setContentBounds(bounds: Electron.Rectangle): void {
   win.setContentBounds(bounds);
+}
+
+export function setResizable(resizable: boolean): void {
+  win.setResizable(resizable);
 }
 
 

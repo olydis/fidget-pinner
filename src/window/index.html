@@ -10,7 +10,7 @@
     }
 
     body webview {
-      position: fixed;
+      position: absolute;
       top: 0;
       left: 0;
       width: 100%;
@@ -18,13 +18,12 @@
     }
 
     body canvas#overlay {
-      position: fixed;
+      position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
       opacity: 0.5;
-      background: white;
       cursor: move;
     }
 
@@ -38,9 +37,11 @@
     }
 
     div#controls {
+      position: absolute;
       display: none;
       opacity: 0.8;
       background: white;
+      text-align: right;
     }
     div#controls.visible {
       display: block;
@@ -53,6 +54,8 @@
       line-height: 24px;
       border: 1px solid black;
       text-align: center;
+      margin: 3px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -62,12 +65,12 @@
     <webview id="page" src=""></webview>
     <canvas id="overlay"></canvas>
     <div id="controls">
-      <div class="button" id="#ctrlTest">T</div>
+      <div class="button" id="btnTest">T</div>
       <div class="button">A</div>
       <div class="button">B</div>
-      <div class="button">C</div>
+      <div class="button" id="btnClose">🞪</div>
     </div>
-  <div>
+  </div>
 </body>
 
 </html>
