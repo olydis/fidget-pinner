@@ -37,6 +37,23 @@ let options = {
 
 type Options = typeof options;
 
+const minWidth = 100;
+const minHeight = 100;
+
+function trunc(x: number, a: number, b: number): number { return Math.min(Math.max(x, a), b); }
+function normalizeOptions(o: Options): Options {
+  const res = Object.assign({}, o);
+  res.contentWidth = Math.max(res.contentWidth, minWidth);
+  res.contentHeight = Math.max(res.contentHeight, minHeight);
+  res.visibleRight = trunc(res.visibleRight, minWidth, res.contentWidth);
+  res.visibleBottom = trunc(res.visibleBottom, minHeight, res.contentHeight);
+  res.visibleLeft = trunc(res.visibleLeft, 0, res.visibleRight - minWidth);
+  res.visibleTop = trunc(res.visibleTop, 0, res.visibleBottom - minHeight);
+  res.windowLeft += res.visibleLeft - o.visibleLeft;
+  res.windowTop += res.visibleTop - o.visibleTop;
+  return res;
+}
+
 // state machine
 class State {
   protected get HWebView() { return State.hWebView; }
@@ -79,6 +96,7 @@ class State {
   }
 
   protected update(options: Options, fullView: boolean) {
+    options = normalizeOptions(options);
     if (fullView)
       setContentBounds({
         x: options.windowLeft - options.visibleLeft,
@@ -132,9 +150,9 @@ class StateMove extends State {
   private controlsMouseUp: (ev : JQuery.Event) => void;
 
   public constructor(
-    private parent: State,
-    private previewOptions: (x: number, y: number) => Options,
-    private renderOptions: (o: Options) => void) {
+      private parent: State,
+      private previewOptions: (x: number, y: number) => Options,
+      private renderOptions: (o: Options) => void) {
     super();
     this.controlsMouseMove = ev => {
       if (ev.screenX !== undefined && ev.screenY !== undefined)
@@ -142,7 +160,7 @@ class StateMove extends State {
     };
     this.controlsMouseUp = ev => {
       if (ev.screenX !== undefined && ev.screenY !== undefined)
-        options = previewOptions(ev.screenX, ev.screenY);
+        options = normalizeOptions(previewOptions(ev.screenX, ev.screenY));
       State.transition(this.parent);
     };
   }
@@ -150,8 +168,6 @@ class StateMove extends State {
   protected enter() {
     this.JWindow.on("mousemove", this.controlsMouseMove);
     this.JWindow.on("mouseup", this.controlsMouseUp);
-
-    this.update(options, false);
   }
   protected exit() {
     this.JWindow.off("mousemove", this.controlsMouseMove);
@@ -165,20 +181,26 @@ class StateMove extends State {
 class StateView extends State {
   private controlsMouseDown: (ev : JQuery.Event) => void;
 
-  public constructor() {
+  public constructor(private controlsVisible: boolean = false) {
     super();
     this.controlsMouseDown = ev => {
       const sx = ev.screenX, sy = ev.screenY;
       if (sx !== undefined && sy !== undefined)
         State.transition(new StateMove(
           this,
-          (x, y) => Object.assign({}, options, { windowLeft: options.windowLeft - sx + x, windowTop: options.windowTop - sy + y }),
+          (x, y) => Object.assign({}, options, {
+            windowLeft: options.windowLeft - sx + x,
+            windowTop: options.windowTop - sy + y
+          }),
           o => this.update(o, false)));
     };
   }
 
   protected enter() {
-    this.JControls.removeClass("visible");
+    if (this.controlsVisible)
+      this.JControls.addClass("visible");
+    else
+      this.JControls.removeClass("visible");
     this.JControls.on("mousedown", this.controlsMouseDown);
 
     this.update(options, false);
@@ -188,38 +210,47 @@ class StateView extends State {
     this.JControls.off("mousedown", this.controlsMouseDown);
   }
   protected keydown(keycode: number): void {
-    if (keycode === 18 /*ALT*/) this.JControls.toggleClass("visible");
+    if (keycode === 18 /*ALT*/) State.transition(new StateView(!this.controlsVisible));
     //alert(keycode);
     //State.transition(new StatePan());
   }
 }
 
 class StateEdit extends State {
+  private controlsMouseDown: (ev : JQuery.Event) => void;
+
+  public constructor() {
+    super();
+    this.controlsMouseDown = ev => {
+      const sx = ev.screenX, sy = ev.screenY;
+      if (sx !== undefined && sy !== undefined)
+        State.transition(new StateMove(
+          this,
+          (x, y) => Object.assign({}, options, {
+            windowLeft: options.windowLeft - sx + x,
+            windowTop: options.windowTop - sy + y,
+            visibleLeft: options.visibleLeft - sx + x,
+            visibleTop: options.visibleTop - sy + y,
+            visibleRight: options.visibleRight - sx + x,
+            visibleBottom: options.visibleBottom - sy + y
+          }),
+          o => this.update(o, true)));
+    };
+  }
+
   public enter() {
+    this.JControls.on("mousedown", this.controlsMouseDown);
+
     this.update(options, true);
   }
-  public exit() { }
+  public exit() {
+    this.JControls.off("mousedown", this.controlsMouseDown);
+  }
 }
 
 $(() => {
+  $(".button").mousedown(ev => ev.stopPropagation());
   $("#btnClose").click(() => window.close());
   $("#btnTest").click(() => State.transition(new StateEdit()));
   State.initialize();
-
-  // const draggable = $("#overlay");
-  
-
-  // // drag
-  // let dragging = false;
-  // let relX = 0;
-  // let relY = 0;
-  // draggable.mousedown(ev => {
-  //   dragging = true;
-  // });
-  // draggable.mousemove(ev => {
-  //   if (ev.screenX && ev.screenY && ev.clientX && ev.clientY) {
-  //     relX = (ev.screenX - ev.clientX) / draggable.width();
-  //     relY = (ev.screenY - ev.clientY) / draggable.height();
-  //   }
-  // });
 });

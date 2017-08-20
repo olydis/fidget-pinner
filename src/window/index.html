@@ -36,11 +36,13 @@
     }
 
     div#controls {
+      user-select: none;
       position: absolute;
       display: none;
       opacity: 0.8;
       background: white;
       text-align: right;
+      font-size: 0;
       cursor: move;
     }
     div#controls.visible {
@@ -48,6 +50,7 @@
     }
 
     div.button {
+      font-size: 20px;
       display: inline-block;
       width: 24px;
       height: 24px;
