@@ -17,7 +17,7 @@ window.onerror = e => alert(e);
 // - resize website
 // - zoom website
 
-const options = {
+let options = {
   version: 0,
   content: {
     url: "https://github.com/",
@@ -42,6 +42,7 @@ class State {
   protected get HWebView() { return State.hWebView; }
   protected get JContainer() { return State.jContainer; }
   protected get JControls() { return State.jControls; }
+  protected get JWindow() { return State.jWindow; }
 
   protected enter(): void { }
   protected exit(): void { }
@@ -57,11 +58,13 @@ class State {
   private static hWebView: Electron.WebviewTag;
   private static jContainer: JQuery;
   private static jControls: JQuery;
+  private static jWindow: JQuery;
   public static initialize(): void {
     $(window).keydown(ev => State.currentState.keydown(ev.keyCode || 0));
     State.hWebView = document.getElementById("page") as Electron.WebviewTag;
     State.jContainer = $("div#container");
     State.jControls = $("div#controls");
+    State.jWindow = $(window);
 
     State.hWebView.src = options.content.url;
     // (webView as any).setLayoutZoomLevelLimits(options.contentZoom, options.contentZoom);
@@ -124,17 +127,68 @@ class State {
 }
 
 // states
+class StateMove extends State {
+  private controlsMouseMove: (ev : JQuery.Event) => void;
+  private controlsMouseUp: (ev : JQuery.Event) => void;
+
+  public constructor(
+    private parent: State,
+    private previewOptions: (x: number, y: number) => Options,
+    private renderOptions: (o: Options) => void) {
+    super();
+    this.controlsMouseMove = ev => {
+      if (ev.screenX !== undefined && ev.screenY !== undefined)
+        renderOptions(previewOptions(ev.screenX, ev.screenY));
+    };
+    this.controlsMouseUp = ev => {
+      if (ev.screenX !== undefined && ev.screenY !== undefined)
+        options = previewOptions(ev.screenX, ev.screenY);
+      State.transition(this.parent);
+    };
+  }
+
+  protected enter() {
+    this.JWindow.on("mousemove", this.controlsMouseMove);
+    this.JWindow.on("mouseup", this.controlsMouseUp);
+
+    this.update(options, false);
+  }
+  protected exit() {
+    this.JWindow.off("mousemove", this.controlsMouseMove);
+    this.JWindow.off("mouseup", this.controlsMouseUp);
+  }
+  protected keydown(keycode: number): void {
+    if (keycode === 27 /*ESC*/) State.transition(this.parent);
+  }
+}
+
 class StateView extends State {
+  private controlsMouseDown: (ev : JQuery.Event) => void;
+
+  public constructor() {
+    super();
+    this.controlsMouseDown = ev => {
+      const sx = ev.screenX, sy = ev.screenY;
+      if (sx !== undefined && sy !== undefined)
+        State.transition(new StateMove(
+          this,
+          (x, y) => Object.assign({}, options, { windowLeft: options.windowLeft - sx + x, windowTop: options.windowTop - sy + y }),
+          o => this.update(o, false)));
+    };
+  }
+
   protected enter() {
     this.JControls.removeClass("visible");
+    this.JControls.on("mousedown", this.controlsMouseDown);
 
     this.update(options, false);
   }
   protected exit() {
     this.JControls.addClass("visible");
+    this.JControls.off("mousedown", this.controlsMouseDown);
   }
   protected keydown(keycode: number): void {
-    if (keycode === 18) this.JControls.toggleClass("visible");
+    if (keycode === 18 /*ALT*/) this.JControls.toggleClass("visible");
     //alert(keycode);
     //State.transition(new StatePan());
   }
