@@ -3,7 +3,6 @@ import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 import { createReadStream, createWriteStream } from "fs";
 import { safeLoad, safeDump } from "js-yaml";
 
-
 app.on('window-all-closed', () => app.exit())
 
 let win: Electron.BrowserWindow;

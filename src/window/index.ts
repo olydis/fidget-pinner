@@ -17,10 +17,30 @@ window.onerror = e => alert(e);
 // - resize website
 // - zoom website
 
-let options = {
+type Options = {
+  version: number;
+  content: {
+    url: string;
+    onNavigate: "allow" | "external" | "suppress";
+  };
+  contentZoom: number;
+  contentWidth: number;
+  contentHeight: number;
+  contentScrollX: number;
+  contentScrollY: number;
+  visibleLeft: number;
+  visibleRight: number;
+  visibleTop: number;
+  visibleBottom: number;
+  windowLeft: number;
+  windowTop: number;
+}
+
+let options: Options = {
   version: 0,
   content: {
     url: "https://github.com/",
+    onNavigate: "suppress"
   },
   contentZoom: 0,
   contentWidth: 1200,
@@ -34,8 +54,6 @@ let options = {
   windowLeft: 100,
   windowTop: 100
 };
-
-type Options = typeof options;
 
 const minWidth = 100;
 const minHeight = 100;
@@ -145,7 +163,7 @@ class State {
 }
 
 // states
-class StateMove extends State {
+class StateMoving extends State {
   private controlsMouseMove: (ev : JQuery.Event) => void;
   private controlsMouseUp: (ev : JQuery.Event) => void;
 
@@ -186,7 +204,7 @@ class StateView extends State {
     this.controlsMouseDown = ev => {
       const sx = ev.screenX, sy = ev.screenY;
       if (sx !== undefined && sy !== undefined)
-        State.transition(new StateMove(
+        State.transition(new StateMoving(
           this,
           (x, y) => Object.assign({}, options, {
             windowLeft: options.windowLeft - sx + x,
@@ -202,11 +220,17 @@ class StateView extends State {
     else
       this.JControls.removeClass("visible");
     this.JControls.on("mousedown", this.controlsMouseDown);
+    this.HWebView.addEventListener("will-navigate", e => {
+      this.HWebView.stop();
+      e.preventDefault();
+      // alert(e.url);
+      // return false;
+    });
 
     this.update(options, false);
   }
   protected exit() {
-    this.JControls.addClass("visible");
+    this.JControls.removeClass("visible");
     this.JControls.off("mousedown", this.controlsMouseDown);
   }
   protected keydown(keycode: number): void {
@@ -224,7 +248,7 @@ class StateEdit extends State {
     this.controlsMouseDown = ev => {
       const sx = ev.screenX, sy = ev.screenY;
       if (sx !== undefined && sy !== undefined)
-        State.transition(new StateMove(
+        State.transition(new StateMoving(
           this,
           (x, y) => Object.assign({}, options, {
             windowLeft: options.windowLeft - sx + x,
@@ -239,18 +263,33 @@ class StateEdit extends State {
   }
 
   public enter() {
+    this.JControls.addClass("visible");
     this.JControls.on("mousedown", this.controlsMouseDown);
 
     this.update(options, true);
   }
   public exit() {
+    this.JControls.removeClass("visible");
     this.JControls.off("mousedown", this.controlsMouseDown);
+  }
+}
+
+class StateWww extends State {
+  public constructor() {
+    super();
+  }
+
+  public enter() {
+    this.update(options, true);
+  }
+  public exit() {
   }
 }
 
 $(() => {
   $(".button").mousedown(ev => ev.stopPropagation());
   $("#btnClose").click(() => window.close());
-  $("#btnTest").click(() => State.transition(new StateEdit()));
+  $("#btnWww").click(() => State.transition(new StateWww()));
+  $("#btnEdit").click(() => State.transition(new StateEdit()));
   State.initialize();
 });

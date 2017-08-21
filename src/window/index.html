@@ -26,13 +26,24 @@
       opacity: 0.5;
     }
 
-    body.mode-view canvas#overlay {
+    body.StateView canvas#overlay {
+      display: none;
+    }
+
+    body.StateWww canvas#overlay {
       display: none;
     }
 
     body div#container {
       position: fixed;
 
+    }
+
+    body.StateView div#controls::before {
+      font-family: monospace;
+      font-size: 16px;
+      content: 'press Alt to toggle this bar';
+      float: left;
     }
 
     div#controls {
@@ -68,9 +79,8 @@
     <webview id="page" src=""></webview>
     <canvas id="overlay"></canvas>
     <div id="controls">
-      <div class="button" id="btnTest">T</div>
-      <div class="button">A</div>
-      <div class="button">B</div>
+      <div class="button" id="btnEdit">🖽</div>
+      <div class="button" id="btnWww">🌎</div>
       <div class="button" id="btnClose">🞪</div>
     </div>
   </div>
