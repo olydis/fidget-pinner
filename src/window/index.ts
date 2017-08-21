@@ -22,12 +22,14 @@ type Options = {
   content: {
     url: string;
     onNavigate: "allow" | "external" | "suppress";
+    autoRefreshMs: number | null;
+    scrollX: number;
+    scrollY: number;
+    allowScroll: boolean;
   };
   contentZoom: number;
   contentWidth: number;
   contentHeight: number;
-  contentScrollX: number;
-  contentScrollY: number;
   visibleLeft: number;
   visibleRight: number;
   visibleTop: number;
@@ -40,13 +42,15 @@ let options: Options = {
   version: 0,
   content: {
     url: "https://github.com/",
-    onNavigate: "suppress"
+    onNavigate: "suppress",
+    autoRefreshMs: 5000,
+    scrollX: 0,
+    scrollY: 200,
+    allowScroll: false
   },
   contentZoom: 0,
   contentWidth: 1200,
   contentHeight: 900,
-  contentScrollX: 0,
-  contentScrollY: 0,
   visibleLeft: 50,
   visibleRight: 1100,
   visibleTop: 50,
@@ -101,10 +105,11 @@ class State {
     State.jControls = $("div#controls");
     State.jWindow = $(window);
 
-    State.hWebView.src = options.content.url;
     // (webView as any).setLayoutZoomLevelLimits(options.contentZoom, options.contentZoom);
     // webView.setZoomLevel(options.contentZoom);
     // prevent scroll in webpage: $("body").css("overflow", "hidden");
+
+    State.refreshContent(options);
 
     State.currentState = new State();
     if (options.content.url === "")
@@ -113,7 +118,32 @@ class State {
       State.transition(new StateView());
   }
 
-  protected update(options: Options, fullView: boolean) {
+  private static refreshContentCleanup: () => void = () => {};
+  protected static refreshContent(options: Options): void {
+    //if (options.content.onNavigate !== "allow")
+    //  State.hWebView.preload = "./preload.js";
+
+    const ondomready = () => {
+      State.hWebView.executeJavaScript(
+        `
+        document.body.scrollLeft = ${options.content.scrollX};
+        document.body.scrollTop = ${options.content.scrollY};`,
+        true
+      );
+      State.refreshContentCleanup();
+    };
+    State.hWebView.addEventListener("dom-ready", ondomready);
+    State.refreshContentCleanup();
+    State.refreshContentCleanup = () => {
+      State.hWebView.removeEventListener("dom-ready", ondomready);
+      State.refreshContentCleanup = () => {};
+    };
+
+    // State.hWebView.src = "about:blank";
+    State.hWebView.src = options.content.url;
+  }
+
+  protected update(options: Options, fullView: boolean): void {
     options = normalizeOptions(options);
     if (fullView)
       setContentBounds({
@@ -133,8 +163,8 @@ class State {
     var container = this.JContainer;
     container.width(options.contentWidth);
     container.height(options.contentHeight);
-    container.scrollLeft(options.contentScrollX);
-    container.scrollTop(options.contentScrollY);
+    container.scrollLeft(options.content.scrollX);
+    container.scrollTop(options.content.scrollY);
 
     if (fullView)
       container.offset({ left: 0, top: 0 });
@@ -214,6 +244,7 @@ class StateView extends State {
     };
   }
 
+  private refreshTimer: NodeJS.Timer;
   protected enter() {
     if (this.controlsVisible)
       this.JControls.addClass("visible");
@@ -221,17 +252,21 @@ class StateView extends State {
       this.JControls.removeClass("visible");
     this.JControls.on("mousedown", this.controlsMouseDown);
     this.HWebView.addEventListener("will-navigate", e => {
-      this.HWebView.stop();
-      e.preventDefault();
-      // alert(e.url);
+      // this.HWebView.stop();
+      // e.preventDefault();
+      alert(e.url);
       // return false;
     });
 
+    if (options.content.autoRefreshMs)
+      this.refreshTimer = setInterval(() => State.refreshContent(options), options.content.autoRefreshMs);
     this.update(options, false);
   }
   protected exit() {
     this.JControls.removeClass("visible");
     this.JControls.off("mousedown", this.controlsMouseDown);
+
+    clearInterval(this.refreshTimer);
   }
   protected keydown(keycode: number): void {
     if (keycode === 18 /*ALT*/) State.transition(new StateView(!this.controlsVisible));
@@ -274,7 +309,7 @@ class StateEdit extends State {
   }
 }
 
-class StateWww extends State {
+class StateContent extends State {
   public constructor() {
     super();
   }
@@ -283,13 +318,15 @@ class StateWww extends State {
     this.update(options, true);
   }
   public exit() {
+    // update options
+    State.refreshContent(options);
   }
 }
 
 $(() => {
   $(".button").mousedown(ev => ev.stopPropagation());
   $("#btnClose").click(() => window.close());
-  $("#btnWww").click(() => State.transition(new StateWww()));
+  $("#btnContent").click(() => State.transition(new StateContent()));
   $("#btnEdit").click(() => State.transition(new StateEdit()));
   State.initialize();
 });
