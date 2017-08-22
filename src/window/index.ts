@@ -78,7 +78,6 @@ function normalizeOptions(o: Options): Options {
 
 // state machine
 class State {
-  protected get HWebView() { return State.hWebView; }
   protected get JContainer() { return State.jContainer; }
   protected get JControls() { return State.jControls; }
   protected get JWindow() { return State.jWindow; }
@@ -86,6 +85,7 @@ class State {
   protected enter(): void { }
   protected exit(): void { }
   protected keydown(keycode: number): void { }
+  protected willNavigate(url: string): void { }
 
   private static currentState: State;
   public static transition(newState: ((oldState: State) => State) | State): void {
@@ -94,13 +94,11 @@ class State {
     document.body.className = State.currentState.constructor.name;
     State.currentState.enter();
   }
-  private static hWebView: Electron.WebviewTag;
   private static jContainer: JQuery;
   private static jControls: JQuery;
   private static jWindow: JQuery;
   public static initialize(): void {
     $(window).keydown(ev => State.currentState.keydown(ev.keyCode || 0));
-    State.hWebView = document.getElementById("page") as Electron.WebviewTag;
     State.jContainer = $("div#container");
     State.jControls = $("div#controls");
     State.jWindow = $(window);
@@ -119,28 +117,42 @@ class State {
   }
 
   private static refreshContentCleanup: () => void = () => {};
-  protected static refreshContent(options: Options): void {
-    //if (options.content.onNavigate !== "allow")
-    //  State.hWebView.preload = "./preload.js";
+  protected static refreshContent(options: Options, showLoad: boolean = false): void {
+    const content = options.content;
+
+    const hWebView = document.createElement("webview");
+    hWebView.className = "preload";
+    $("#page").append(hWebView);
+    if (showLoad) $("webview.active").remove();
+
+    if (options.content.onNavigate !== "allow")
+      hWebView.preload = "./preload.js";
 
     const ondomready = () => {
-      State.hWebView.executeJavaScript(
+      hWebView.executeJavaScript(
         `
         document.body.scrollLeft = ${options.content.scrollX};
-        document.body.scrollTop = ${options.content.scrollY};`,
+        document.body.scrollTop = ${options.content.scrollY};
+        ${content.allowScroll ? "" : "document.body.style.overflow = 'hidden';"}`,
         true
       );
       State.refreshContentCleanup();
+      // swap
+      $("webview.active").remove();
+      hWebView.className = "active";
     };
-    State.hWebView.addEventListener("dom-ready", ondomready);
+    const onwillnavigate = (e: Electron.WillNavigateEvent) => State.currentState.willNavigate(e.url);
+    hWebView.addEventListener("dom-ready", ondomready);
+    hWebView.addEventListener("will-navigate", onwillnavigate);
+
+    // cleanup
     State.refreshContentCleanup();
     State.refreshContentCleanup = () => {
-      State.hWebView.removeEventListener("dom-ready", ondomready);
+      hWebView.removeEventListener("dom-ready", ondomready);
       State.refreshContentCleanup = () => {};
     };
 
-    // State.hWebView.src = "about:blank";
-    State.hWebView.src = options.content.url;
+    hWebView.src = options.content.url;
   }
 
   protected update(options: Options, fullView: boolean): void {
@@ -214,10 +226,12 @@ class StateMoving extends State {
   }
 
   protected enter() {
+    this.JControls.addClass("visible");
     this.JWindow.on("mousemove", this.controlsMouseMove);
     this.JWindow.on("mouseup", this.controlsMouseUp);
   }
   protected exit() {
+    this.JControls.removeClass("visible");
     this.JWindow.off("mousemove", this.controlsMouseMove);
     this.JWindow.off("mouseup", this.controlsMouseUp);
   }
@@ -251,12 +265,6 @@ class StateView extends State {
     else
       this.JControls.removeClass("visible");
     this.JControls.on("mousedown", this.controlsMouseDown);
-    this.HWebView.addEventListener("will-navigate", e => {
-      // this.HWebView.stop();
-      // e.preventDefault();
-      alert(e.url);
-      // return false;
-    });
 
     if (options.content.autoRefreshMs)
       this.refreshTimer = setInterval(() => State.refreshContent(options), options.content.autoRefreshMs);
@@ -272,6 +280,9 @@ class StateView extends State {
     if (keycode === 18 /*ALT*/) State.transition(new StateView(!this.controlsVisible));
     //alert(keycode);
     //State.transition(new StatePan());
+  }
+  protected willNavigate(url: string): void {
+    alert(url);
   }
 }
 
@@ -315,11 +326,17 @@ class StateContent extends State {
   }
 
   public enter() {
-    this.update(options, true);
+    const displayOptions = Object.assign({}, options);
+    displayOptions.content = Object.assign({}, displayOptions.content, { 
+        onNavigate: "allow",
+        allowScroll: true
+      });
+    this.update(displayOptions, true);
+    State.refreshContent(displayOptions, true);
   }
   public exit() {
     // update options
-    State.refreshContent(options);
+    State.refreshContent(options, true);
   }
 }
 

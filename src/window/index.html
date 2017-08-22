@@ -6,15 +6,48 @@
   </script>
   <script src="index.js"></script>
   <style>
-    body.mode-view {
+    #background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
     }
 
-    body webview {
+    #background::before {
+      content: "• • •";
+      position: absolute;
+      top: calc(50% - 100px);
+      left: calc(50% - 200px);
+      width: 400px;
+      height: 200px;
+
+      text-align: center;
+      font-size: 200px;
+    }
+
+    #page {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
+    }
+
+    #page webview {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #page webview.preload {
+      visibility: hidden;
+    }
+
+    #page webview.active {
+      visibility: visible;
     }
 
     body canvas#overlay {
@@ -41,9 +74,12 @@
 
     body.StateView div#controls::before {
       font-family: monospace;
-      font-size: 16px;
+      font-size: 14px;
+      font-weight: "bold";
       content: 'press Alt to toggle this bar';
-      float: left;
+      position: absolute;
+      left: 5px;
+      top: 5px;
     }
 
     div#controls {
@@ -75,8 +111,11 @@
 </head>
 
 <body>
+  <div id="background">
+  </div>
   <div id="container">
-    <webview id="page" src=""></webview>
+    <div id="page">
+    </div>
     <canvas id="overlay"></canvas>
     <div id="controls">
       <div class="button" id="btnEdit">🖽</div>
