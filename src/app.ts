@@ -1,4 +1,4 @@
-import { delay } from './delay';
+import { delay } from './common';
 import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 import { createReadStream, createWriteStream } from "fs";
 import { safeLoad, safeDump } from "js-yaml";
@@ -9,13 +9,13 @@ let win: Electron.BrowserWindow;
 
 app.once("ready", async () => {
   const displays = screen.getAllDisplays();
-  
+
   win = new BrowserWindow({ frame: false });
   win.setResizable(false);
   win.setMenu(null as any);
   win.setAlwaysOnTop(true);
   win.loadURL(`${__dirname}/window/index.html`);
-  // win.webContents.openDevTools();
+  win.webContents.openDevTools();
 });
 
 export function setContentBounds(bounds: Electron.Rectangle): void {

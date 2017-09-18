@@ -1,5 +1,8 @@
+import * as console from 'console';
 import { ipcRenderer, remote } from "electron";
 import * as $ from 'jquery';
+import { trunc } from "../common";
+import { Options, normalizeOptions } from "./options";
 
 const setContentBounds: (bounds: Electron.Rectangle) => void = remote.require("./app").setContentBounds;
 const setResizable: (resizable: boolean) => void = remote.require("./app").setResizable;
@@ -17,27 +20,6 @@ window.onerror = e => alert(e);
 // - resize website
 // - zoom website
 
-type Options = {
-  version: number;
-  content: {
-    url: string;
-    onNavigate: "allow" | "external" | "suppress";
-    autoRefreshMs: number | null;
-    scrollX: number;
-    scrollY: number;
-    allowScroll: boolean;
-  };
-  contentZoom: number;
-  contentWidth: number;
-  contentHeight: number;
-  visibleLeft: number;
-  visibleRight: number;
-  visibleTop: number;
-  visibleBottom: number;
-  windowLeft: number;
-  windowTop: number;
-}
-
 let options: Options = {
   version: 0,
   content: {
@@ -49,38 +31,30 @@ let options: Options = {
     allowScroll: false
   },
   contentZoom: 0,
-  contentWidth: 1200,
+  contentWidth: 1900,
   contentHeight: 900,
   visibleLeft: 50,
-  visibleRight: 1100,
+  visibleRight: 1850,
   visibleTop: 50,
   visibleBottom: 800,
   windowLeft: 100,
   windowTop: 100
 };
 
-const minWidth = 100;
-const minHeight = 100;
-
-function trunc(x: number, a: number, b: number): number { return Math.min(Math.max(x, a), b); }
-function normalizeOptions(o: Options): Options {
-  const res = Object.assign({}, o);
-  res.contentWidth = Math.max(res.contentWidth, minWidth);
-  res.contentHeight = Math.max(res.contentHeight, minHeight);
-  res.visibleRight = trunc(res.visibleRight, minWidth, res.contentWidth);
-  res.visibleBottom = trunc(res.visibleBottom, minHeight, res.contentHeight);
-  res.visibleLeft = trunc(res.visibleLeft, 0, res.visibleRight - minWidth);
-  res.visibleTop = trunc(res.visibleTop, 0, res.visibleBottom - minHeight);
-  res.windowLeft += res.visibleLeft - o.visibleLeft;
-  res.windowTop += res.visibleTop - o.visibleTop;
-  return res;
-}
-
 // state machine
-class State {
+abstract class State {
   protected get JContainer() { return State.jContainer; }
   protected get JControls() { return State.jControls; }
   protected get JWindow() { return State.jWindow; }
+
+  protected get controlsVisible(): boolean { return true; }
+
+  private invariants(): void {
+    this.controlsVisible
+      ? this.JControls.addClass("visible")
+      : this.JControls.removeClass("visible");
+
+  }
 
   protected enter(): void { }
   protected exit(): void { }
@@ -88,11 +62,15 @@ class State {
   protected willNavigate(url: string): void { }
 
   private static currentState: State;
+  private static setState(newState: State): void {
+    State.currentState = newState;
+    document.body.className = State.currentState.constructor.name;
+    State.currentState.invariants();
+    State.currentState.enter();
+  }
   public static transition(newState: ((oldState: State) => State) | State): void {
     State.currentState.exit();
-    State.currentState = typeof newState === "function" ? newState(State.currentState) : newState;
-    document.body.className = State.currentState.constructor.name;
-    State.currentState.enter();
+    State.setState(typeof newState === "function" ? newState(State.currentState) : newState);
   }
   private static jContainer: JQuery;
   private static jControls: JQuery;
@@ -109,14 +87,13 @@ class State {
 
     State.refreshContent(options);
 
-    State.currentState = new State();
     if (options.content.url === "")
-      State.transition(new StateEdit());
+      State.setState(new StateEdit());
     else
-      State.transition(new StateView());
+      State.setState(new StateView());
   }
 
-  private static refreshContentCleanup: () => void = () => {};
+  private static refreshContentCleanup: () => void = () => { };
   protected static refreshContent(options: Options, showLoad: boolean = false): void {
     const content = options.content;
 
@@ -128,7 +105,7 @@ class State {
     if (options.content.onNavigate !== "allow")
       hWebView.preload = "./preload.js";
 
-    const ondomready = () => {
+    const readyToDisplay = () => {
       hWebView.executeJavaScript(
         `
         document.body.scrollLeft = ${options.content.scrollX};
@@ -140,22 +117,23 @@ class State {
       // swap
       $("webview.active").remove();
       hWebView.className = "active";
+      $("webview.preload").remove(); // orphans (if next timer tick was earlier than this event)
     };
     const onwillnavigate = (e: Electron.WillNavigateEvent) => State.currentState.willNavigate(e.url);
-    hWebView.addEventListener("dom-ready", ondomready);
+    hWebView.addEventListener("did-finish-load", readyToDisplay);
     hWebView.addEventListener("will-navigate", onwillnavigate);
 
     // cleanup
     State.refreshContentCleanup();
     State.refreshContentCleanup = () => {
-      hWebView.removeEventListener("dom-ready", ondomready);
-      State.refreshContentCleanup = () => {};
+      hWebView.removeEventListener("did-finish-load", readyToDisplay);
+      State.refreshContentCleanup = () => { };
     };
 
     hWebView.src = options.content.url;
   }
 
-  protected update(options: Options, fullView: boolean): void {
+  protected updateBounds(options: Options, fullView: boolean): void {
     options = normalizeOptions(options);
     if (fullView)
       setContentBounds({
@@ -183,7 +161,7 @@ class State {
     else
       container.offset({ left: -options.visibleLeft, top: -options.visibleTop });
 
-    this.JControls.css({ 
+    this.JControls.css({
       left: options.visibleLeft,
       top: options.visibleTop,
       width: options.visibleRight - options.visibleLeft
@@ -206,13 +184,13 @@ class State {
 
 // states
 class StateMoving extends State {
-  private controlsMouseMove: (ev : JQuery.Event) => void;
-  private controlsMouseUp: (ev : JQuery.Event) => void;
+  private controlsMouseMove: (ev: JQuery.Event) => void;
+  private controlsMouseUp: (ev: JQuery.Event) => void;
 
   public constructor(
-      private parent: State,
-      private previewOptions: (x: number, y: number) => Options,
-      private renderOptions: (o: Options) => void) {
+    private parent: State,
+    private previewOptions: (x: number, y: number) => Options,
+    private renderOptions: (o: Options) => void) {
     super();
     this.controlsMouseMove = ev => {
       if (ev.screenX !== undefined && ev.screenY !== undefined)
@@ -226,12 +204,10 @@ class StateMoving extends State {
   }
 
   protected enter() {
-    this.JControls.addClass("visible");
     this.JWindow.on("mousemove", this.controlsMouseMove);
     this.JWindow.on("mouseup", this.controlsMouseUp);
   }
   protected exit() {
-    this.JControls.removeClass("visible");
     this.JWindow.off("mousemove", this.controlsMouseMove);
     this.JWindow.off("mouseup", this.controlsMouseUp);
   }
@@ -241,9 +217,11 @@ class StateMoving extends State {
 }
 
 class StateView extends State {
-  private controlsMouseDown: (ev : JQuery.Event) => void;
+  private controlsMouseDown: (ev: JQuery.Event) => void;
 
-  public constructor(private controlsVisible: boolean = false) {
+  protected get controlsVisible() { return this._controlsVisible; }
+
+  public constructor(private readonly _controlsVisible: boolean = false) {
     super();
     this.controlsMouseDown = ev => {
       const sx = ev.screenX, sy = ev.screenY;
@@ -254,24 +232,19 @@ class StateView extends State {
             windowLeft: options.windowLeft - sx + x,
             windowTop: options.windowTop - sy + y
           }),
-          o => this.update(o, false)));
+          o => this.updateBounds(o, false)));
     };
   }
 
   private refreshTimer: NodeJS.Timer;
   protected enter() {
-    if (this.controlsVisible)
-      this.JControls.addClass("visible");
-    else
-      this.JControls.removeClass("visible");
     this.JControls.on("mousedown", this.controlsMouseDown);
 
     if (options.content.autoRefreshMs)
       this.refreshTimer = setInterval(() => State.refreshContent(options), options.content.autoRefreshMs);
-    this.update(options, false);
+    this.updateBounds(options, false);
   }
   protected exit() {
-    this.JControls.removeClass("visible");
     this.JControls.off("mousedown", this.controlsMouseDown);
 
     clearInterval(this.refreshTimer);
@@ -287,7 +260,7 @@ class StateView extends State {
 }
 
 class StateEdit extends State {
-  private controlsMouseDown: (ev : JQuery.Event) => void;
+  private controlsMouseDown: (ev: JQuery.Event) => void;
 
   public constructor() {
     super();
@@ -304,18 +277,16 @@ class StateEdit extends State {
             visibleRight: options.visibleRight - sx + x,
             visibleBottom: options.visibleBottom - sy + y
           }),
-          o => this.update(o, true)));
+          o => this.updateBounds(o, true)));
     };
   }
 
   public enter() {
-    this.JControls.addClass("visible");
     this.JControls.on("mousedown", this.controlsMouseDown);
 
-    this.update(options, true);
+    this.updateBounds(options, true);
   }
   public exit() {
-    this.JControls.removeClass("visible");
     this.JControls.off("mousedown", this.controlsMouseDown);
   }
 }
@@ -325,13 +296,15 @@ class StateContent extends State {
     super();
   }
 
+  protected get controlsVisible() { return false; }
+
   public enter() {
     const displayOptions = Object.assign({}, options);
-    displayOptions.content = Object.assign({}, displayOptions.content, { 
-        onNavigate: "allow",
-        allowScroll: true
-      });
-    this.update(displayOptions, true);
+    displayOptions.content = Object.assign({}, displayOptions.content, {
+      onNavigate: "allow",
+      allowScroll: true
+    });
+    this.updateBounds(displayOptions, true);
     State.refreshContent(displayOptions, true);
   }
   public exit() {
