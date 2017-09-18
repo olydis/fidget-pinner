@@ -59,6 +59,14 @@
       opacity: 0.5;
     }
 
+    body div#shield {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
     body.StateView canvas#overlay {
       display: none;
     }
@@ -69,7 +77,6 @@
 
     body div#container {
       position: fixed;
-
     }
 
     body.StateView div#controls::before {
@@ -92,6 +99,7 @@
       font-size: 0;
       cursor: move;
     }
+
     div#controls.visible {
       display: block;
     }
@@ -115,6 +123,9 @@
   </div>
   <div id="container">
     <div id="page">
+    </div>
+    <div id="shield">
+      <!--when active, prevents any mouse interaction with page-->
     </div>
     <canvas id="overlay"></canvas>
     <div id="controls">

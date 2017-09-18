@@ -28,7 +28,9 @@ let options: Options = {
     autoRefreshMs: 5000,
     scrollX: 0,
     scrollY: 200,
-    allowScroll: false
+    allowScroll: false,
+    allowSelection: false,
+    allowHoverAndClick: false
   },
   contentZoom: 0,
   contentWidth: 1900,
@@ -97,6 +99,8 @@ abstract class State {
   protected static refreshContent(options: Options, showLoad: boolean = false): void {
     const content = options.content;
 
+    $("div#shield").css("display", content.allowHoverAndClick ? "none" : "block");
+
     const hWebView = document.createElement("webview");
     hWebView.className = "preload";
     $("#page").append(hWebView);
@@ -110,12 +114,14 @@ abstract class State {
         `
         document.body.scrollLeft = ${options.content.scrollX};
         document.body.scrollTop = ${options.content.scrollY};
-        ${content.allowScroll ? "" : "document.body.style.overflow = 'hidden';"}`,
+        ${content.allowScroll ? "" : "document.body.style.overflow = 'hidden';"}
+        ${content.allowSelection ? "" : "document.body.style.userSelect = 'none';"}`,
         true
       );
       State.refreshContentCleanup();
-      // swap
-      $("webview.active").remove();
+      // swap (delay removal of old webview to prevent flicker)
+      const active = $("webview.active");
+      setTimeout(() => active.remove(), 500);
       hWebView.className = "active";
       $("webview.preload").remove(); // orphans (if next timer tick was earlier than this event)
     };

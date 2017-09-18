@@ -12,6 +12,8 @@ export type Options = {
     scrollX: number;
     scrollY: number;
     allowScroll: boolean;
+    allowSelection: boolean;
+    allowHoverAndClick: boolean;
   };
   contentZoom: number;
   contentWidth: number;
