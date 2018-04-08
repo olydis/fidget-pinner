@@ -42,6 +42,28 @@ let options: Options = {
   windowLeft: 100,
   windowTop: 100
 };
+options = {
+  version: 0,
+  content: {
+    url: "file:///C:/Users/Johannes/Documents/GitHub/GradVer/impl/HTML5wp/index.html",
+    onNavigate: "suppress",
+    autoRefreshMs: 5000,
+    scrollX: 0,
+    scrollY: 200,
+    allowScroll: false,
+    allowSelection: false,
+    allowHoverAndClick: false
+  },
+  contentZoom: 0,
+  contentWidth: 1000,
+  contentHeight: 800,
+  visibleLeft: 50,
+  visibleRight: 400,
+  visibleTop: 50,
+  visibleBottom: 200,
+  windowLeft: 100,
+  windowTop: 100
+};
 
 // state machine
 abstract class State {
@@ -103,7 +125,7 @@ abstract class State {
 
     const hWebView = document.createElement("webview");
     hWebView.className = "preload";
-    $("#page").append(hWebView);
+    $("#page").append(hWebView as Element);
     if (showLoad) $("webview.active").remove();
 
     if (options.content.onNavigate !== "allow")
